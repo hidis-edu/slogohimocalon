@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rekapan Semua Jalur</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .table-responsive { max-height: 70vh; overflow-y: auto; }
+        thead th { position: sticky; top: 0; background-color: #0d6efd; color: white; z-index: 1; white-space: nowrap;}
+        td { white-space: nowrap; }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid mt-4 px-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="text-primary fw-bold">Rekapan Calon Siswa (Semua Jalur)</h2>
+        <div>
+            <select id="sekolah" class="form-select d-inline-block w-auto me-2">
+                <option value="slogohimo">SMP Negeri 1 Slogohimo</option>
+                <option value="hidis">SDI Hidis</option>
+            </select>
+            <button onclick="tarikSemuaData()" class="btn btn-success fw-bold" id="btn-tarik">
+                Tarik Semua Data
+            </button>
+            <button onclick="downloadExcelGabungan()" class="btn btn-warning fw-bold ms-2" id="btn-export" style="display: none;">
+                ⬇️ Export CSV
+            </button>
+        </div>
+    </div>
+
+    <div id="info" class="alert alert-info" style="display: none;"></div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered mb-0" id="tabel-rekapan">
+                    <thead id="thead-rekapan"></thead>
+                    <tbody id="tbody-rekapan">
+                        <tr><td class="text-center p-4 text-muted">Klik "Tarik Semua Data" untuk menampilkan rekapan...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Variabel global ben iso diwaca karo fungsi Export
+let globalDataGabungan = [];
+let globalArrayKolom = [];
+
+async function tarikSemuaData() {
+    const sekolah = document.getElementById('sekolah').value;
+    const btn = document.getElementById('btn-tarik');
+    const btnExport = document.getElementById('btn-export');
+    const info = document.getElementById('info');
+    const thead = document.getElementById('thead-rekapan');
+    const tbody = document.getElementById('tbody-rekapan');
+
+    const kabehJalur = ['prestasi', 'mutasi', 'domisili', 'afirmasi'];
+
+    btn.disabled = true;
+    btnExport.style.display = 'none'; // Sembunyikne sik pas lagi loading
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Loading...`;
+    info.style.display = 'block';
+    info.className = 'alert alert-info';
+    info.innerHTML = 'Sedang menarik data dari 4 jalur bebarengan... Sabar yo, Jo!';
+    tbody.innerHTML = '';
+    thead.innerHTML = '';
+    
+    // Reset data global
+    globalDataGabungan = [];
+    globalArrayKolom = [];
+
+    try {
+        const requests = kabehJalur.map(j => 
+            fetch(`https://fastify.nganjuk.net/api/gas/calonsiswa/${sekolah}/${j}`).then(res => res.json())
+        );
+        
+        const hasilKabehJalur = await Promise.all(requests);
+
+        let kabehKolom = new Set();
+        kabehKolom.add('JALUR');
+
+        hasilKabehJalur.forEach((hasil, index) => {
+            if (hasil.success && hasil.data) {
+                const namaJalur = kabehJalur[index].toUpperCase();
+                
+                hasil.data.forEach(siswa => {
+                    siswa['JALUR'] = namaJalur;
+                    Object.keys(siswa).forEach(key => kabehKolom.add(key));
+                    globalDataGabungan.push(siswa);
+                });
+            }
+        });
+
+        if (globalDataGabungan.length === 0) {
+            info.className = 'alert alert-warning';
+            info.innerHTML = 'Data kosong melompong, durung ono sing daftar!';
+            return;
+        }
+
+        // Simpen susunan kolom menyang variabel global
+        globalArrayKolom = Array.from(kabehKolom);
+
+        // Render Header
+        let htmlHeader = '<tr>';
+        globalArrayKolom.forEach(kolom => {
+            htmlHeader += `<th>${kolom.toUpperCase()}</th>`;
+        });
+        htmlHeader += '</tr>';
+        thead.innerHTML = htmlHeader;
+
+        // Render Body
+        let htmlBody = '';
+        globalDataGabungan.forEach(siswa => {
+            htmlBody += '<tr>';
+            globalArrayKolom.forEach(kolom => {
+                let nilai = siswa[kolom];
+                htmlBody += `<td>${nilai !== undefined && nilai !== null ? nilai : '-'}</td>`;
+            });
+            htmlBody += '</tr>';
+        });
+        tbody.innerHTML = htmlBody;
+
+        info.className = 'alert alert-success';
+        info.innerHTML = `<strong>Mantap!</strong> Berhasil nggabungke <b>${globalDataGabungan.length}</b> calon siswa soko kabeh jalur.`;
+        
+        // Data wes siap, tombole di-metu-ne!
+        btnExport.style.display = 'inline-block';
+
+    } catch (error) {
+        console.error(error);
+        info.className = 'alert alert-danger';
+        info.innerHTML = 'Waduh, error Jo! Cek koneksi server utawa port.';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Tarik Semua Data';
+    }
+}
+
+// Fungsi njaluk file CSV saka tabel gabungan
+function downloadExcelGabungan() {
+    if (globalDataGabungan.length === 0) {
+        alert("Durung ana data sing iso di-export!");
+        return;
+    }
+
+    // 1. Tulis Header-e
+    let csvContent = globalArrayKolom.map(k => `"${k}"`).join(',') + '\n';
+
+    // 2. Tulis Isi Datane, baris per baris
+    globalDataGabungan.forEach(siswa => {
+        let rowValues = globalArrayKolom.map(kolom => {
+            let nilai = siswa[kolom];
+            // Nek kosong dadi text kosong wae, ojo "undefined"
+            let text = String(nilai !== undefined && nilai !== null ? nilai : '');
+            // Antisipasi tanda kutip ganda nang njero teks
+            text = text.replace(/"/g, '""');
+            return `"${text}"`;
+        });
+        csvContent += rowValues.join(',') + '\n';
+    });
+
+    // 3. Proses dadi file sing iso diunduh
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const namaSekolah = document.getElementById('sekolah').value.toUpperCase();
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Rekapan_Semua_Jalur_${namaSekolah}.csv`);
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+</script>
+</body>
+</html>

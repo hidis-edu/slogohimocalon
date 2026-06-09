@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cari Data Calon Siswa</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #e9ecef; }
+        .card { border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .list-group-item { background-color: transparent; }
+    </style>
+</head>
+<body>
+
+<div class="container mt-5">
+    <div class="card p-4 mx-auto" style="max-width: 500px;">
+        <h3 class="text-center mb-4 text-primary">Cari Data Siswa</h3>
+        
+        <div class="mb-3">
+            <label class="form-label fw-bold">Sekolah</label>
+            <select id="sekolah" class="form-select">
+                <option value="slogohimo">SMP Negeri 1 Slogohimo</option>
+                <option value="hidis">SDI Hidis</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-bold">Jalur Pendaftaran</label>
+            <select id="jalur" class="form-select">
+                <option value="prestasi">Prestasi</option>
+                <option value="mutasi">Mutasi</option>
+                <option value="domisili">Domisili</option>
+                <option value="afirmasi">Afirmasi</option>
+            </select>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label fw-bold">Masukkan NIK</label>
+            <input type="text" id="nik" class="form-control" placeholder="Contoh: 3312192906140001">
+        </div>
+
+        <button onclick="cari()" class="btn btn-primary w-100 fw-bold py-2">Cari Data</button>
+
+        <div id="hasil" class="mt-4" style="display: none;"></div>
+    </div>
+</div>
+
+<script>
+async function cari() {
+    const sekolah = document.getElementById('sekolah').value;
+    const jalur = document.getElementById('jalur').value;
+    const nik = document.getElementById('nik').value;
+    const hasilDiv = document.getElementById('hasil');
+    const btn = document.querySelector('button');
+
+    if (!nik) {
+        alert("NIK kudu diisi disik, Jo!");
+        return;
+    }
+
+    // Tampilan Loading
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Mencari...`;
+    hasilDiv.style.display = "block";
+    hasilDiv.innerHTML = '<div class="alert alert-info text-center">Sedang memproses data...</div>';
+
+    try {
+        // Tembak URL lengkap sing wis ono jalur-e
+        const res = await fetch(`https://fastify.nganjuk.net/api/gas/calonsiswa/${sekolah}/${jalur}/${nik}`);
+        const result = await res.json();
+        
+        if (result.success) {
+            const d = result.data;
+            
+            // IKI KUNCINE BEN OTOMATIS: 
+            // Maca kabeh data sing beda-beda tanpa di-hardcode
+            let detailDataHtml = '';
+            for (const [kunci, nilai] of Object.entries(d)) {
+                // Ben ketok luwih rapi, huruf-e dicetak kandel
+                detailDataHtml += `<li class="list-group-item d-flex justify-content-between align-items-start">
+                                      <span class="fw-bold me-auto">${kunci}</span>
+                                      <span class="text-end">${nilai || '-'}</span>
+                                   </li>`;
+            }
+
+            hasilDiv.innerHTML = `
+                <div class="card border-success mt-3">
+                    <div class="card-header bg-success text-white text-center fw-bold">
+                        Data Ditemukan (Jalur ${result.jalur.toUpperCase()})
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        ${detailDataHtml}
+                    </ul>
+                </div>
+            `;
+        } else {
+            hasilDiv.innerHTML = `<div class="alert alert-danger text-center fw-bold">${result.message}</div>`;
+        }
+    } catch (error) {
+        hasilDiv.innerHTML = `<div class="alert alert-warning text-center">Server ora respon! Cek port 9005.</div>`;
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = "Cari Data";
+    }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login SPMB Wonogiri</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f4f4f9; }
+        .login-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 300px; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background-color: #d32f2f; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        #status { margin-top: 10px; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+<div class="login-card">
+    <h2>Login Operator</h2>
+    <input type="text" id="username" placeholder="Username">
+    <input type="password" id="password" placeholder="Password">
+    <button onclick="handleLogin()">Login</button>
+    <div id="status"></div>
+</div>
+
+<script>
+    async function handleLogin() {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const statusDiv = document.getElementById('status');
+
+        statusDiv.innerText = "Sedang login...";
+
+        try {
+            // Nembak API Fastify-mu
+            const response = await fetch('https://fastify.nganjuk.net/api/smart/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'sukses') {
+                statusDiv.style.color = "green";
+                statusDiv.innerText = "Login Kasill! Menyimpan cookie...";
+                
+                // SIMPEN COOKIE nang localStorage (koyo SharedPreferences nang Android)
+                localStorage.setItem('cookie_rahasia', JSON.stringify(result.cookie_rahasia));
+                
+                // Redirect menyang halaman dashboard
+                window.location.href = "dashboard.html";
+            } else {
+                statusDiv.style.color = "red";
+                statusDiv.innerText = result.pesan;
+            }
+        } catch (error) {
+            statusDiv.style.color = "red";
+            statusDiv.innerText = "Gagal nembak server!";
+        }
+    }
+</script>
+</body>
+</html>

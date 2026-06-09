@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard SPMB Wonogiri</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; padding: 20px; }
+        .container { max-width: 800px; margin: auto; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
+        th { background: #d32f2f; color: white; }
+        .btn { padding: 10px 20px; background: #d32f2f; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px; }
+        .btn-secondary { background: #4caf50; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <h2 id="sekolah-name">Loading...</h2>
+        <p id="admin-name"></p>
+        <button class="btn btn-secondary" onclick="tampilSeleksi()">Tampilke Data Seleksi</button>
+        <button class="btn" onclick="logout()">Logout</button>
+    </div>
+
+    <div class="card" id="container-seleksi" style="display:none;">
+        <h3>Data Seleksi Siswa</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>No</th>
+                    <th>Sekolah</th>
+                    <th>Lokasi</th>
+                    <th>Kecamatan</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                <tr><td colspan="4">Sedang memuat data...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const cookie = localStorage.getItem('cookie_rahasia');
+    if (!cookie) window.location.href = "admin.html";
+
+    // Fungsi load data profil tok
+    async function loadDashboard() {
+        const payload = { cookie_rahasia: JSON.parse(cookie) };
+        const resDash = await fetch('/api/smart/dashboard', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const dash = await resDash.json();
+        document.getElementById('sekolah-name').innerText = dash.data.sekolah;
+        document.getElementById('admin-name').innerText = "Admin: " + dash.data.admin;
+    }
+
+    // Fungsi render data seleksi (dipencet tombol)
+    async function tampilSeleksi() {
+        const container = document.getElementById('container-seleksi');
+        const tbody = document.getElementById('table-body');
+        
+        container.style.display = 'block'; // Munculke tabel
+        
+        const payload = { cookie_rahasia: JSON.parse(cookie) };
+        const resSel = await fetch('/api/smart/seleksi', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const seleksi = await resSel.json();
+        
+        tbody.innerHTML = ""; // Resik-resik
+        seleksi.data.forEach(item => {
+            tbody.innerHTML += `<tr>
+                <td>${item.no}</td>
+                <td>${item.nama_sekolah}</td>
+                <td>${item.lokasi}</td>
+                <td>${item.kecamatan}</td>
+            </tr>`;
+        });
+    }
+
+    function logout() {
+        localStorage.removeItem('cookie_rahasia');
+        window.location.href = "admin.html";
+    }
+
+    loadDashboard(); // Jalankan pas halaman kebuka
+</script>
+</body>
+</html>
